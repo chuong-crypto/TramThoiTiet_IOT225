@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Thời Tiết - ESP32 IoT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center md:text-left">
+            <h1 class="text-3xl font-bold text-slate-800">Trạm Thời Tiết Thông Minh</h1>
+            <p class="text-slate-500">Cập nhật dữ liệu thời gian thực từ ESP32</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-orange-400">
+                <div class="flex items-center">
+                    <div class="p-3 bg-orange-100 rounded-full text-orange-500 mr-4">
+                        <i class="fa-solid fa-temperature-high fa-2x"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500 uppercase font-semibold">Nhiệt độ</p>
+                        <h2 id="temp-val" class="text-3xl font-bold text-slate-800">--°C</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-400">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full text-blue-500 mr-4">
+                        <i class="fa-solid fa-droplet fa-2x"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500 uppercase font-semibold">Độ ẩm</p>
+                        <h2 id="humi-val" class="text-3xl font-bold text-slate-800">--%</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-emerald-400">
+                <div class="flex items-center">
+                    <div class="p-3 bg-emerald-100 rounded-full text-emerald-500 mr-4">
+                        <i class="fa-solid fa-gauge-high fa-2x"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-500 uppercase font-semibold">Áp suất</p>
+                        <h2 id="pres-val" class="text-3xl font-bold text-slate-800">-- hPa</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm">
+            <h3 class="text-xl font-semibold mb-4 text-slate-700">Biểu đồ nhiệt độ lịch sử</h3>
+            <div class="relative h-[400px]">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CẤU HÌNH TỪ ẢNH CỦA BẠN ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCRfbr0qfk3Dl3s4CL91ebv4Mwn_fh05wk",
+            authDomain: "thoitiet-83ada.firebaseapp.com",
+            databaseURL: "https://thoitiet-83ada-default-rtdb.firebaseio.com",
+            projectId: "thoitiet-83ada",
+            storageBucket: "thoitiet-83ada.firebasestorage.app",
+            messagingSenderId: "960783631266",
+            appId: "1:960783631266:web:ecd353248ea26191fca8fb",
+            measurementId: "G-JZ9V36KJYH"
+        };
+
+        // Khởi tạo Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Khởi tạo biểu đồ
+        const ctx = document.getElementById('tempChart').getContext('2d');
+        const tempChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Nhiệt độ (°C)',
+                    data: [],
+                    borderColor: '#f97316',
+                    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: false }
+                }
+            }
+        });
+
+        // Lắng nghe dữ liệu từ Firebase
+        database.ref('/weather').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Cập nhật các con số trên thẻ
+                document.getElementById('temp-val').innerText = data.temperature.toFixed(1) + "°C";
+                document.getElementById('humi-val').innerText = data.humidity.toFixed(1) + "%";
+                document.getElementById('pres-val').innerText = Math.round(data.pressure) + " hPa";
+
+                // Cập nhật biểu đồ (Giới hạn 15 điểm gần nhất)
+                const now = new Date().toLocaleTimeString();
+                if (tempChart.data.labels.length > 15) {
+                    tempChart.data.labels.shift();
+                    tempChart.data.datasets[0].data.shift();
+                }
+                tempChart.data.labels.push(now);
+                tempChart.data.datasets[0].data.push(data.temperature);
+                tempChart.update();
+            }
+        });
+    </script>
+</body>
+</html>
