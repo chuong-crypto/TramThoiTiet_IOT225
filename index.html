@@ -1,71 +1,273 @@
 <!DOCTYPE html>
 <html lang="vi">
+<html lang="vi" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Thời Tiết - ESP32 IoT</title>
+    <title>Sửa lỗi Biểu đồ - Weather Station PRO</title>
+    <title>Sửa lỗi Biểu đồ & Theme Toggle - Weather System Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: 'rgba(30, 41, 59, 0.5)',
+                            text: '#f1f5f9',
+                            muted: '#94a3b8'
+                        },
+                        light: {
+                            bg: '#f8fafc',
+                            card: 'rgba(255, 255, 255, 0.7)',
+                            text: '#1e293b',
+                            muted: '#64748b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; min-height: 100vh; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; }
+        :root {
+            --chart-text: #94a3b8;
+            --chart-grid: rgba(255,255,255,0.05);
+        }
+        .light :root {
+            --chart-text: #64748b;
+            --chart-grid: rgba(0,0,0,0.05);
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .glass {
+            background: var(--card-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            transition: background 0.3s ease, border 0.3s ease;
+        }
+
+        .dark {
+            --bg-color: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --text-color: #f1f5f9;
+            --card-color: rgba(30, 41, 59, 0.5);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --chart-text: #94a3b8;
+            --chart-grid: rgba(255,255,255,0.05);
+        }
+
+        .light {
+            --bg-color: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            --text-color: #1e293b;
+            --card-color: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(0, 0, 0, 0.1);
+            --chart-text: #64748b;
+            --chart-grid: rgba(0,0,0,0.05);
+        }
+
+        .heartbeat { animation: beat 1.5s infinite; }
+        @keyframes beat { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } }
+        .gradient-text { background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* Custom Toggle Switch */
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2196F3; }
+        input:focus + .slider { box-shadow: 0 0 1px #2196F3; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* Slider icons */
+        .slider .icon-sun { position: absolute; left: 10px; top: 9px; color: #f59e0b; opacity: 1; transition: opacity .4s; }
+        .slider .icon-moon { position: absolute; right: 10px; top: 9px; color: #fff; opacity: 0; transition: opacity .4s; }
+        input:checked + .slider .icon-sun { opacity: 0; }
+        input:checked + .slider .icon-moon { opacity: 1; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen p-4 md:p-8">
+<body class="p-4 md:p-10">
+<body class="p-4 md:p-10 min-h-screen">
 
-    <div class="max-w-6xl mx-auto">
-        <header class="mb-8 text-center md:text-left">
-            <h1 class="text-3xl font-bold text-slate-800">Trạm Thời Tiết Thông Minh</h1>
-            <p class="text-slate-500">Cập nhật dữ liệu thời gian thực từ ESP32</p>
-        </header>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-orange-400">
-                <div class="flex items-center">
-                    <div class="p-3 bg-orange-100 rounded-full text-orange-500 mr-4">
-                        <i class="fa-solid fa-temperature-high fa-2x"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm text-slate-500 uppercase font-semibold">Nhiệt độ</p>
-                        <h2 id="temp-val" class="text-3xl font-bold text-slate-800">--°C</h2>
-                    </div>
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 text-center md:text-left">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 text-center md:text-left">
+            <div>
+                <h1 class="text-4xl font-black gradient-text uppercase">Weather System Pro</h1>
+                <h1 class="text-4xl font-black gradient-text uppercase tracking-tighter">Weather System Pro</h1>
+                <div class="flex items-center justify-center md:justify-start mt-2">
+                    <div id="status-dot" class="w-3 h-3 bg-red-500 rounded-full heartbeat mr-2"></div>
+                    <span id="status-text" class="text-slate-400 text-xs font-bold uppercase tracking-widest">Đang chờ dữ liệu...</span>
+                    <div id="status-dot" class="w-3 h-3 bg-red-500 rounded-full heartbeat mr-2 transition-colors duration-300"></div>
+                    <span id="status-text" class="text-slate-400 dark:text-dark-muted light:text-light-muted text-xs font-bold uppercase tracking-widest">Đang chờ dữ liệu...</span>
                 </div>
             </div>
+            <div class="glass px-6 py-3">
+                <p id="current-time" class="text-xl font-mono font-bold text-sky-400">--:--:--</p>
+                <p id="current-date" class="text-[10px] text-slate-400 uppercase tracking-tighter">Đang tải thời gian...</p>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-400">
-                <div class="flex items-center">
-                    <div class="p-3 bg-blue-100 rounded-full text-blue-500 mr-4">
-                        <i class="fa-solid fa-droplet fa-2x"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm text-slate-500 uppercase font-semibold">Độ ẩm</p>
-                        <h2 id="humi-val" class="text-3xl font-bold text-slate-800">--%</h2>
-                    </div>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2 glass px-4 py-2">
+                    <span class="text-xs text-slate-500 light:text-slate-400 uppercase font-bold">Chế độ</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="theme-toggle">
+                        <span class="slider">
+                            <i class="fa-solid fa-sun icon-sun"></i>
+                            <i class="fa-solid fa-moon icon-moon"></i>
+                        </span>
+                    </label>
                 </div>
-            </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-emerald-400">
-                <div class="flex items-center">
-                    <div class="p-3 bg-emerald-100 rounded-full text-emerald-500 mr-4">
-                        <i class="fa-solid fa-gauge-high fa-2x"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm text-slate-500 uppercase font-semibold">Áp suất</p>
-                        <h2 id="pres-val" class="text-3xl font-bold text-slate-800">-- hPa</h2>
-                    </div>
+                <div class="glass px-6 py-3 min-w-[150px]">
+                    <p id="current-time" class="text-xl font-mono font-bold text-sky-400">--:--:--</p>
+                    <p id="current-date" class="text-[10px] text-slate-400 light:text-slate-500 uppercase tracking-tighter">Đang tải thời gian...</p>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-sm">
-            <h3 class="text-xl font-semibold mb-4 text-slate-700">Biểu đồ nhiệt độ lịch sử</h3>
-            <div class="relative h-[400px]">
-                <canvas id="tempChart"></canvas>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="glass p-6 border-b-4 border-orange-500/50">
+                <div class="flex justify-between items-center mb-4">
+                    <i class="fa-solid fa-temperature-half text-orange-400 text-3xl"></i>
+                    <span class="text-[10px] font-bold text-orange-500 opacity-50 uppercase">Nhiệt độ</span>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+            <div class="glass p-8 border-l-8 border-orange-500 relative overflow-hidden group transition-all duration-300 hover:scale-[1.02]">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-orange-500/20 transition-all"></div>
+                <div class="flex justify-between items-start mb-6">
+                    <div class="p-4 bg-orange-500/20 rounded-2xl text-orange-400">
+                        <i class="fa-solid fa-temperature-three-quarters fa-2x fa-bounce"></i>
+                    </div>
+                    <span class="text-xs font-bold text-orange-500/70 uppercase tracking-widest">Nhiệt độ</span>
+                </div>
+                <h2 id="temp-val" class="text-5xl font-bold">--°C</h2>
+                <div class="flex items-baseline gap-1">
+                    <h2 id="temp-val" class="text-6xl font-black gradient-text">--°C</h2>
+                    <span class="text-xs text-slate-500 light:text-slate-400">(DHT11)</span>
+                </div>
+                <p class="text-slate-400 light:text-slate-500 text-sm italic mt-2">Cảm biến nhiệt độ kỹ thuật số</p>
+            </div>
+            <div class="glass p-6 border-b-4 border-blue-500/50">
+                <div class="flex justify-between items-center mb-4">
+                    <i class="fa-solid fa-droplet text-blue-400 text-3xl"></i>
+                    <span class="text-[10px] font-bold text-blue-500 opacity-50 uppercase">Độ ẩm</span>
+
+            <div class="glass p-8 border-l-8 border-blue-500 relative overflow-hidden group transition-all duration-300 hover:scale-[1.02]">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
+                <div class="flex justify-between items-start mb-6">
+                    <div class="p-4 bg-blue-500/20 rounded-2xl text-blue-400">
+                        <i class="fa-solid fa-droplet fa-2x fa-beat"></i>
+                    </div>
+                    <span class="text-xs font-bold text-blue-500/70 uppercase tracking-widest">Độ ẩm</span>
+                </div>
+                <h2 id="humi-val" class="text-5xl font-bold">--%</h2>
+                <div class="flex items-baseline gap-1">
+                    <h2 id="humi-val" class="text-6xl font-black gradient-text">--%</h2>
+                    <span class="text-xs text-slate-500 light:text-slate-400">(DHT11)</span>
+                </div>
+                <p class="text-slate-400 light:text-slate-500 text-sm italic mt-2">Độ ẩm không khí tương đối</p>
+            </div>
+            <div class="glass p-6 border-b-4 border-emerald-500/50">
+                <div class="flex justify-between items-center mb-4">
+                    <i class="fa-solid fa-gauge-high text-emerald-400 text-3xl"></i>
+                    <span class="text-[10px] font-bold text-emerald-500 opacity-50 uppercase">Áp suất</span>
+
+            <div class="glass p-8 border-l-8 border-emerald-500 relative overflow-hidden group transition-all duration-300 hover:scale-[1.02]">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-emerald-500/20 transition-all"></div>
+                <div class="flex justify-between items-start mb-6">
+                    <div class="p-4 bg-emerald-500/20 rounded-2xl text-emerald-400">
+                        <i class="fa-solid fa-gauge-high fa-2x fa-spin" style="--fa-animation-duration: 5s;"></i>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-500/70 uppercase tracking-widest">Áp suất</span>
+                </div>
+                <h2 id="pres-val" class="text-4xl font-bold pt-2">-- hPa</h2>
+                <div class="flex items-baseline gap-1">
+                    <h2 id="pres-val" class="text-5xl font-black gradient-text">-- hPa</h2>
+                    <span class="text-xs text-slate-500 light:text-slate-400">(BMP180)</span>
+                </div>
+                <p class="text-slate-400 light:text-slate-500 text-sm italic mt-2">Áp suất khí quyển chính xác</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+            <div class="glass p-6 h-[350px]">
+                <h3 class="text-sm font-bold mb-4 uppercase text-slate-400">Lịch sử Nhiệt độ & Độ ẩm</h3>
+            <div class="glass p-6 h-[400px]">
+                <h3 class="text-sm font-bold mb-6 uppercase tracking-widest text-slate-400 light:text-slate-600">Lịch sử Nhiệt độ & Độ ẩm (Đường cong)</h3>
+                <canvas id="multiChart"></canvas>
+            </div>
+            <div class="glass p-6 h-[350px]">
+                <h3 class="text-sm font-bold mb-4 uppercase text-slate-400">Áp suất khí quyển (hPa)</h3>
+            <div class="glass p-6 h-[400px]">
+                <h3 class="text-sm font-bold mb-6 uppercase tracking-widest text-slate-400 light:text-slate-600">Áp suất khí quyển (hPa)</h3>
+                <canvas id="pressureChart"></canvas>
+            </div>
+        </div>
+
+        <div class="glass overflow-hidden">
+            <div class="p-4 bg-white/5 border-b border-white/10 flex justify-between items-center">
+                <h3 class="text-sm font-bold uppercase tracking-widest">Nhật ký dữ liệu</h3>
+                <span class="text-[10px] text-slate-500">Hiển thị 10 bản ghi gần nhất</span>
+            <div class="p-4 bg-white/5 dark:bg-dark-card light:bg-light-card/70 border-b border-white/10 flex justify-between items-center">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-slate-700 dark:text-slate-200">Nhật ký dữ liệu thời gian thực</h3>
+                <span class="text-[10px] text-slate-500 font-mono">Hiển thị 10 bản ghi gần nhất</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="text-[10px] text-slate-500 uppercase bg-black/20">
+                    <thead class="text-[10px] text-slate-500 uppercase bg-black/20 dark:bg-black/30">
+                        <tr>
+                            <th class="p-4">Thời gian</th>
+                            <th class="p-4">Nhiệt độ</th>
+                            <th class="p-4">Độ ẩm</th>
+                            <th class="p-4">Áp suất</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body" class="text-sm font-mono divide-y divide-white/5">
+                    <tbody id="history-body" class="text-sm font-mono divide-y divide-white/5 dark:divide-white/10">
+                        </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <script>
-        // --- CẤU HÌNH TỪ ẢNH CỦA BẠN ---
+        // --- CONFIG ---
+        // --- THEME SWITCHER LOGIC ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+
+        // Check for preserved theme on load
+        const currentTheme = localStorage.getItem('theme') ? localStorage.getItem('theme') : 'dark';
+        htmlElement.className = currentTheme;
+        themeToggle.checked = (currentTheme === 'light');
+
+        // Toggle handler
+        themeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                htmlElement.className = 'light';
+                localStorage.setItem('theme', 'light');
+            } else {
+                htmlElement.className = 'dark';
+                localStorage.setItem('theme', 'dark');
+            }
+            // Need to reload charts to pick up theme-based colors
+            updateChartColors();
+        });
+
+        // --- FIREBASE CONFIG (EXACTLY AS PROVIDED) ---
         const firebaseConfig = {
             apiKey: "AIzaSyCRfbr0qfk3Dl3s4CL91ebv4Mwn_fh05wk",
             authDomain: "thoitiet-83ada.firebaseapp.com",
@@ -73,58 +275,204 @@
             projectId: "thoitiet-83ada",
             storageBucket: "thoitiet-83ada.firebasestorage.app",
             messagingSenderId: "960783631266",
+            appId: "1:960783631266:web:ecd353248ea26191fca8fb"
             appId: "1:960783631266:web:ecd353248ea26191fca8fb",
             measurementId: "G-JZ9V36KJYH"
         };
 
-        // Khởi tạo Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // Khởi tạo biểu đồ
-        const ctx = document.getElementById('tempChart').getContext('2d');
-        const tempChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Nhiệt độ (°C)',
-                    data: [],
-                    borderColor: '#f97316',
-                    backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
+        // --- CHART INITIALIZATION ---
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { size: 10 } } } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#475569', font: { size: 10 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#475569', font: { size: 10 } } }
+            }
+        // Base common options with tension for CURVES
+        const getChartOptions = () => {
+            const chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim();
+            const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim();
+            
+            return {
                 responsive: true,
                 maintainAspectRatio: false,
+                elements: {
+                    line: { tension: 0.6 } // THIS MAKES IT CURVEY
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: chartTextColor, font: { size: 11, weight: 'bold' } }
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: false }
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: chartTextColor, font: { size: 10, family: 'monospace' } }
+                    },
+                    y: {
+                        grid: { color: chartGridColor },
+                        ticks: { color: chartTextColor, font: { size: 10 } }
+                    }
                 }
-            }
-        });
+            };
+        };
 
-        // Lắng nghe dữ liệu từ Firebase
+        const multiChart = new Chart(document.getElementById('multiChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Temp (°C)', data: [], borderColor: '#f97316', tension: 0.4, pointRadius: 2 },
+                { label: 'Humi (%)', data: [], borderColor: '#3b82f6', tension: 0.4, pointRadius: 2 }
+            ]},
+            options: commonOptions
+        });
+        let multiChart, pressureChart;
+
+        const pressureChart = new Chart(document.getElementById('pressureChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Pressure', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, pointRadius: 2 }
+            ]},
+            options: commonOptions
+        });
+        function initCharts() {
+            const options = getChartOptions();
+            
+            const multiCtx = document.getElementById('multiChart');
+            multiChart = new Chart(multiCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Temp (°C)', data: [], borderColor: '#f97316', pointRadius: 2, pointBackgroundColor: '#f97316' },
+                        { label: 'Humi (%)', data: [], borderColor: '#3b82f6', pointRadius: 2, pointBackgroundColor: '#3b82f6' }
+                    ]
+                },
+                options: options
+            });
+
+            const pressureCtx = document.getElementById('pressureChart');
+            pressureChart = new Chart(pressureCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Pressure',
+                            data: [],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16,185,129,0.1)',
+                            fill: true,
+                            pointRadius: 2,
+                            pointBackgroundColor: '#10b981'
+                        }
+                    ]
+                },
+                options: options
+            });
+        }
+
+        function updateChartColors() {
+            if (!multiChart || !pressureChart) return;
+            const options = getChartOptions();
+            multiChart.options = options;
+            pressureChart.options = options;
+            multiChart.update();
+            pressureChart.update();
+        }
+
+        // --- Initialize Charts on Load ---
+        initCharts();
+
+        // --- DATA HANDLING ---
+        // --- DATA HANDLING FROM FIREBASE ---
         database.ref('/weather').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // Cập nhật các con số trên thẻ
-                document.getElementById('temp-val').innerText = data.temperature.toFixed(1) + "°C";
-                document.getElementById('humi-val').innerText = data.humidity.toFixed(1) + "%";
-                document.getElementById('pres-val').innerText = Math.round(data.pressure) + " hPa";
+                console.log("Dữ liệu nhận được:", data); // Kiểm tra lỗi ở Console F12
+                
+                // Ép kiểu số để tránh lỗi toFixed()
+                // Number casting for safety
+                const t = Number(data.temperature);
+                const h = Number(data.humidity);
+                const p = Number(data.pressure);
+                const now = new Date().toLocaleTimeString('vi-VN', { hour12: false });
 
-                // Cập nhật biểu đồ (Giới hạn 15 điểm gần nhất)
-                const now = new Date().toLocaleTimeString();
-                if (tempChart.data.labels.length > 15) {
-                    tempChart.data.labels.shift();
-                    tempChart.data.datasets[0].data.shift();
-                }
-                tempChart.data.labels.push(now);
-                tempChart.data.datasets[0].data.push(data.temperature);
-                tempChart.update();
+                // Cập nhật UI
+                // Update UI Cards
+                document.getElementById('temp-val').innerText = t.toFixed(1) + "°C";
+                document.getElementById('humi-val').innerText = h.toFixed(1) + "%";
+                document.getElementById('pres-val').innerText = Math.round(p) + " hPa";
+
+                // Trạng thái trực tuyến
+                document.getElementById('status-dot').className = "w-3 h-3 bg-green-500 rounded-full heartbeat mr-2";
+                // Update Online Status
+                const dot = document.getElementById('status-dot');
+                dot.className = "w-3 h-3 bg-green-500 rounded-full heartbeat mr-2";
+                document.getElementById('status-text').innerText = "Thiết bị đang trực tuyến";
+                document.getElementById('status-text').className = "text-green-600 dark:text-green-400 text-xs font-bold uppercase tracking-widest";
+
+                // Cập nhật Biểu đồ
+                [multiChart, pressureChart].forEach(c => {
+                    if (c.data.labels.length > 10) {
+                        c.data.labels.shift();
+                        c.data.datasets.forEach(d => d.data.shift());
+                // Update Charts (keep 10 values)
+                [multiChart, pressureChart].forEach(chart => {
+                    if (chart.data.labels.length > 10) {
+                        chart.data.labels.shift();
+                        chart.data.datasets.forEach(ds => ds.data.shift());
+                    }
+                    c.data.labels.push(now);
+                    chart.data.labels.push(now);
+                });
+                multiChart.data.datasets[0].data.push(t);
+                multiChart.data.datasets[1].data.push(h);
+                pressureChart.data.datasets[0].data.push(p);
+                multiChart.update('none'); // Update nhanh không animation để tránh giật
+                pressureChart.update('none');
+                multiChart.update(); 
+                pressureChart.update();
+
+                // Cập nhật Bảng
+                // Update Log Table
+                const tbody = document.getElementById('history-body');
+                const row = `<tr class="hover:bg-white/5 transition-colors">
+                    <td class="p-4 text-sky-400">${now}</td>
+                    <td class="p-4">${t.toFixed(1)}°C</td>
+                    <td class="p-4">${h.toFixed(1)}%</td>
+                    <td class="p-4">${Math.round(p)}</td>
+                const row = `<tr class="hover:bg-black/10 dark:hover:bg-white/5 transition-colors">
+                    <td class="p-4 text-sky-500 dark:text-sky-400">${now}</td>
+                    <td class="p-4 text-slate-700 dark:text-slate-200">${t.toFixed(1)}°C</td>
+                    <td class="p-4 text-slate-700 dark:text-slate-200">${h.toFixed(1)}%</td>
+                    <td class="p-4 text-slate-700 dark:text-slate-200 font-bold">${Math.round(p)}</td>
+                </tr>`;
+                tbody.insertAdjacentHTML('afterbegin', row);
+                if (tbody.rows.length > 10) tbody.deleteRow(10);
             }
+        }, (error) => {
+            console.error("Lỗi Firebase:", error);
+            const statusDot = document.getElementById('status-dot');
+            statusDot.className = "w-3 h-3 bg-red-500 rounded-full heartbeat mr-2 transition-colors duration-300";
+            document.getElementById('status-text').innerText = "Lỗi kết nối Firebase!";
+            document.getElementById('status-text').className = "text-red-600 dark:text-red-400 text-xs font-bold uppercase tracking-widest";
         });
+
+        // Time Update
+        // Current Time and Date Update (1s)
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('current-time').innerText = now.toLocaleTimeString('vi-VN');
+            document.getElementById('current-date').innerText = now.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
+            const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('current-time').innerText = timeStr;
+            const dateStr = now.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('current-date').innerText = dateStr;
+        }, 1000);
     </script>
 </body>
-</html>
