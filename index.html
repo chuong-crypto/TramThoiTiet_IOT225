@@ -9,54 +9,98 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
     <style>
-        :root { --bg-color: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); --text-color: #f1f5f9; }
-        body { background: var(--bg-color); color: var(--text-color); transition: all 0.5s ease; }
-        .glass { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; }
-        .offline { filter: grayscale(1) opacity(0.6); pointer-events: none; }
+        /* Biến màu sắc cho 2 chế độ */
+        :root { --bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); --card: rgba(30, 41, 59, 0.6); --text: #f1f5f9; --border: rgba(255,255,255,0.1); }
+        .light { --bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); --card: rgba(255, 255, 255, 0.8); --text: #1e293b; --border: rgba(0,0,0,0.1); }
+
+        body { background: var(--bg); color: var(--text); transition: all 0.4s ease; min-height: 100vh; }
+        .glass { background: var(--card); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 24px; transition: all 0.3s ease; }
+        
+        /* Hiệu ứng khi Offline */
+        .is-offline { filter: grayscale(1) blur(1px); opacity: 0.5; pointer-events: none; }
+        
         .heartbeat { animation: beat 1.5s infinite; }
         @keyframes beat { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } }
-        /* Đổi màu tiêu đề sang xanh lá rực rỡ */
+        
         .title-green { background: linear-gradient(90deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* Nút gạt Switch */
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(24px); }
     </style>
 </head>
-<body class="p-4 md:p-10 min-h-screen">
+<body class="p-4 md:p-10 font-sans">
 
     <div class="max-w-7xl mx-auto">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 text-center md:text-left">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
             <div>
                 <h1 class="text-4xl font-black title-green uppercase tracking-tighter">TRẠM THỜI TIẾT IOT225</h1>
                 <div class="flex items-center justify-center md:justify-start mt-2">
                     <div id="status-dot" class="w-3 h-3 bg-red-500 rounded-full heartbeat mr-2"></div>
-                    <span id="status-text" class="text-slate-500 text-xs font-bold uppercase tracking-widest">Đang kiểm tra kết nối...</span>
+                    <span id="status-text" class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Đang kết nối...</span>
                 </div>
             </div>
-            
-            <div class="glass px-6 py-3 min-w-[150px]">
-                <p id="current-time" class="text-xl font-mono font-bold text-emerald-400">--:--:--</p>
-                <p id="current-date" class="text-[10px] text-slate-400 uppercase">Đang tải...</p>
+
+            <div class="flex items-center gap-4">
+                <div class="glass px-4 py-2 flex items-center gap-3">
+                    <i class="fa-solid fa-sun text-orange-400 text-sm"></i>
+                    <label class="switch">
+                        <input type="checkbox" id="mode-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <i class="fa-solid fa-moon text-slate-400 text-sm"></i>
+                </div>
+                <div class="glass px-6 py-2 text-right">
+                    <p id="clock" class="text-xl font-mono font-bold text-emerald-500">00:00:00</p>
+                    <p id="date" class="text-[10px] opacity-60 uppercase">Đang tải...</p>
+                </div>
             </div>
         </div>
 
-        <div id="main-dashboard" class="transition-all duration-700">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-                <div class="glass p-8 border-l-8 border-emerald-500">
-                    <span class="text-xs font-bold text-emerald-500/70 uppercase">Nhiệt độ</span>
-                    <h2 id="temp-val" class="text-6xl font-black mt-2">--°C</h2>
+        <div id="main-content" class="transition-all duration-500">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="glass p-8 relative overflow-hidden group border-b-4 border-emerald-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="p-3 bg-emerald-500/20 rounded-xl text-emerald-400"><i class="fa-solid fa-temperature-high fa-2x"></i></div>
+                        <span class="text-[10px] font-bold opacity-50 uppercase">Nhiệt độ</span>
+                    </div>
+                    <h2 id="temp-val" class="text-6xl font-black">--°C</h2>
                 </div>
-                <div class="glass p-8 border-l-8 border-blue-500">
-                    <span class="text-xs font-bold text-blue-500/70 uppercase">Độ ẩm</span>
-                    <h2 id="humi-val" class="text-6xl font-black mt-2">--%</h2>
+
+                <div class="glass p-8 relative overflow-hidden group border-b-4 border-blue-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="p-3 bg-blue-500/20 rounded-xl text-blue-400"><i class="fa-solid fa-droplet fa-2x"></i></div>
+                        <span class="text-[10px] font-bold opacity-50 uppercase">Độ ẩm</span>
+                    </div>
+                    <h2 id="humi-val" class="text-6xl font-black">--%</h2>
                 </div>
-                <div class="glass p-8 border-l-8 border-sky-500">
-                    <span class="text-xs font-bold text-sky-500/70 uppercase">Áp suất</span>
-                    <h2 id="pres-val" class="text-5xl font-black mt-2">-- hPa</h2>
+
+                <div class="glass p-8 relative overflow-hidden group border-b-4 border-sky-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="p-3 bg-sky-500/20 rounded-xl text-sky-400"><i class="fa-solid fa-gauge fa-2x"></i></div>
+                        <span class="text-[10px] font-bold opacity-50 uppercase">Áp suất</span>
+                    </div>
+                    <h2 id="pres-val" class="text-5xl font-black pt-1">-- hPa</h2>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-                <div class="glass p-6 h-[350px]"><canvas id="multiChart"></canvas></div>
-                <div class="glass p-6 h-[350px]"><canvas id="pressureChart"></canvas></div>
+                <div class="glass p-6 h-[400px]">
+                    <h3 class="text-xs font-bold mb-4 opacity-50 uppercase">Biểu đồ Nhiệt độ & Độ ẩm</h3>
+                    <canvas id="weatherChart"></canvas>
+                </div>
+                <div class="glass p-6 h-[400px]">
+                    <h3 class="text-xs font-bold mb-4 opacity-50 uppercase">Biến thiên Áp suất</h3>
+                    <canvas id="pressureChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -75,76 +119,112 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        let lastActiveTime = 0; // Lưu thời điểm cuối nhận dữ liệu
-        const TIMEOUT_MS = 25000; // 25 giây không có số mới = Offline
+        let lastSeen = 0;
+        const OFFLINE_LIMIT = 25000; // 25 giây
 
-        // Khởi tạo biểu đồ (giữ nguyên logic cũ nhưng thêm tension cho mượt)
-        const ctx1 = document.getElementById('multiChart');
-        const multiChart = new Chart(ctx1, {
+        // Setup Biểu đồ mượt mà (Curves)
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            elements: { line: { tension: 0.5 } }, // Đường cong mềm mại
+            plugins: { legend: { display: true, labels: { color: '#94a3b8' } } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+            }
+        };
+
+        const weatherChart = new Chart(document.getElementById('weatherChart'), {
             type: 'line',
             data: { labels: [], datasets: [
-                { label: 'Temp', data: [], borderColor: '#10b981', tension: 0.4 },
-                { label: 'Humi', data: [], borderColor: '#3b82f6', tension: 0.4 }
+                { label: 'Temp', data: [], borderColor: '#10b981', pointRadius: 0 },
+                { label: 'Humi', data: [], borderColor: '#3b82f6', pointRadius: 0 }
             ]},
-            options: { responsive: true, maintainAspectRatio: false }
+            options: commonOptions
         });
 
-        // Lắng nghe dữ liệu
+        const pressureChart = new Chart(document.getElementById('pressureChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'hPa', data: [], borderColor: '#0ea5e9', fill: true, backgroundColor: 'rgba(14,165,233,0.1)', pointRadius: 0 }
+            ]},
+            options: commonOptions
+        });
+
+        // Lắng nghe Firebase
         database.ref('/weather').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                lastActiveTime = Date.now(); // Cập nhật thời gian thực
-                updateUI(data);
-                setOnlineStatus(true);
+                lastSeen = Date.now();
+                updateDisplay(data);
+                toggleOfflineUI(false);
             }
         });
 
-        function updateUI(data) {
-            document.getElementById('temp-val').innerText = Number(data.temperature).toFixed(1) + "°C";
-            document.getElementById('humi-val').innerText = Number(data.humidity).toFixed(1) + "%";
-            document.getElementById('pres-val').innerText = Math.round(data.pressure) + " hPa";
-            
-            // Update chart
-            const now = new Date().toLocaleTimeString();
-            if (multiChart.data.labels.length > 10) {
-                multiChart.data.labels.shift();
-                multiChart.data.datasets[0].data.shift();
-            }
-            multiChart.data.labels.push(now);
-            multiChart.data.datasets[0].data.push(data.temperature);
-            multiChart.update();
+        function updateDisplay(data) {
+            const t = Number(data.temperature);
+            const h = Number(data.humidity);
+            const p = Number(data.pressure);
+            const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+
+            document.getElementById('temp-val').innerText = t.toFixed(1) + "°C";
+            document.getElementById('humi-val').innerText = h.toFixed(1) + "%";
+            document.getElementById('pres-val').innerText = Math.round(p) + " hPa";
+
+            // Cập nhật biểu đồ
+            [weatherChart, pressureChart].forEach(c => {
+                if (c.data.labels.length > 15) { c.data.labels.shift(); c.data.datasets.forEach(d => d.data.shift()); }
+                c.data.labels.push(time);
+            });
+            weatherChart.data.datasets[0].data.push(t);
+            weatherChart.data.datasets[1].data.push(h);
+            pressureChart.data.datasets[0].data.push(p);
+            weatherChart.update('none');
+            pressureChart.update('none');
         }
 
-        function setOnlineStatus(isOnline) {
+        // Logic Offline Watchdog
+        setInterval(() => {
+            if (Date.now() - lastSeen > OFFLINE_LIMIT) toggleOfflineUI(true);
+        }, 5000);
+
+        function toggleOfflineUI(isOffline) {
             const dot = document.getElementById('status-dot');
-            const text = document.getElementById('status-text');
-            const board = document.getElementById('main-dashboard');
+            const txt = document.getElementById('status-text');
+            const main = document.getElementById('main-content');
 
-            if (isOnline) {
-                dot.className = "w-3 h-3 bg-green-500 rounded-full heartbeat mr-2";
-                text.innerText = "THIẾT BỊ ĐANG TRỰC TUYẾN";
-                text.className = "text-green-500 text-xs font-bold uppercase tracking-widest";
-                board.classList.remove('offline');
+            if (isOffline) {
+                dot.className = "w-3 h-3 bg-red-600 rounded-full mr-2";
+                txt.innerText = "THIẾT BỊ NGOẠI TUYẾN (OFFLINE)";
+                txt.className = "text-red-500 text-[10px] font-bold uppercase tracking-widest";
+                main.classList.add('is-offline');
             } else {
-                dot.className = "w-3 h-3 bg-red-500 rounded-full mr-2";
-                text.innerText = "THIẾT BỊ NGOẠI TUYẾN (OFFLINE)";
-                text.className = "text-red-500 text-xs font-bold uppercase tracking-widest";
-                board.classList.add('offline');
+                dot.className = "w-3 h-3 bg-green-500 rounded-full heartbeat mr-2";
+                txt.innerText = "THIẾT BỊ ĐANG TRỰC TUYẾN";
+                txt.className = "text-green-500 text-[10px] font-bold uppercase tracking-widest";
+                main.classList.remove('is-offline');
             }
         }
 
-        // VÒNG LẶP KIỂM TRA (WATCHDOG)
-        setInterval(() => {
-            if (Date.now() - lastActiveTime > TIMEOUT_MS) {
-                setOnlineStatus(false);
-            }
-        }, 5000); // Cứ 5 giây kiểm tra 1 lần
+        // Nút gạt chuyển màu
+        document.getElementById('mode-toggle').addEventListener('change', function() {
+            document.documentElement.classList.toggle('light');
+            // Cập nhật màu chữ biểu đồ cho hợp với nền sáng/tối
+            const isLight = document.documentElement.classList.contains('light');
+            const color = isLight ? '#64748b' : '#94a3b8';
+            [weatherChart, pressureChart].forEach(c => {
+                c.options.plugins.legend.labels.color = color;
+                c.options.scales.x.ticks.color = color;
+                c.options.scales.y.ticks.color = color;
+                c.update();
+            });
+        });
 
-        // Đồng hồ
+        // Đồng hồ thời gian thực
         setInterval(() => {
-            const n = new Date();
-            document.getElementById('current-time').innerText = n.toLocaleTimeString('vi-VN');
-            document.getElementById('current-date').innerText = n.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('vi-VN');
+            document.getElementById('date').innerText = now.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
         }, 1000);
     </script>
 </body>
