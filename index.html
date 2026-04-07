@@ -13,30 +13,38 @@
         tailwind.config = { darkMode: 'class' }
     </script>
     <style>
-        :root { --bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); --card: rgba(30, 41, 59, 0.6); --text: #f1f5f9; }
-        .light { --bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); --card: rgba(255, 255, 255, 0.8); --text: #1e293b; }
-        body { background: var(--bg); color: var(--text); transition: all 0.4s ease; min-height: 100vh; font-family: 'Inter', sans-serif; }
-        .glass { background: var(--card); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; }
-        .is-offline { filter: grayscale(1) blur(2px); opacity: 0.5; pointer-events: none; }
-        .title-green { background: linear-gradient(90deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        :root { --bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); --card: rgba(30, 41, 59, 0.6); --text: #f1f5f9; --border: rgba(255,255,255,0.1); }
+        .light { --bg: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); --card: rgba(255, 255, 255, 0.8); --text: #1e293b; --border: rgba(0,0,0,0.1); }
+
+        body { background: var(--bg); color: var(--text); transition: all 0.4s ease; min-height: 100vh; }
+        .glass { background: var(--card); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 24px; transition: all 0.3s ease; }
+        
+        .is-offline { filter: grayscale(1) blur(1px); opacity: 0.5; pointer-events: none; }
+        
         .heartbeat { animation: beat 1.5s infinite; }
         @keyframes beat { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } }
-        /* Switch UI */
-        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        
+        .title-green { background: linear-gradient(90deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #10b981; }
-        input:checked + .slider:before { transform: translateX(22px); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Custom scrollbar cho bảng nhật ký */
+        #log-container::-webkit-scrollbar { width: 6px; }
+        #log-container::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.5); border-radius: 10px; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-10 font-sans">
 
     <div class="max-w-7xl mx-auto">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
             <div>
-                <h1 class="text-4xl font-black title-green uppercase tracking-tighter">TRẠM THỜI TIẾT IOT225</h1>
-                <div class="flex items-center mt-2 justify-center md:justify-start">
+                <h1 class="text-4xl font-black title-green uppercase tracking-tighter text-center md:text-left">TRẠM THỜI TIẾT IOT225</h1>
+                <div class="flex items-center justify-center md:justify-start mt-2">
                     <div id="status-dot" class="w-3 h-3 bg-red-500 rounded-full heartbeat mr-2"></div>
                     <span id="status-text" class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Đang kết nối...</span>
                 </div>
@@ -44,67 +52,82 @@
 
             <div class="flex items-center gap-4">
                 <div class="glass px-4 py-2 flex items-center gap-3">
-                    <i class="fa-solid fa-sun text-orange-400"></i>
-                    <label class="switch"><input type="checkbox" id="mode-toggle"><span class="slider"></span></label>
-                    <i class="fa-solid fa-moon text-slate-400"></i>
+                    <i class="fa-solid fa-sun text-orange-400 text-sm"></i>
+                    <label class="switch">
+                        <input type="checkbox" id="mode-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <i class="fa-solid fa-moon text-slate-400 text-sm"></i>
                 </div>
-                <div class="glass px-6 py-2 text-right min-w-[160px]">
+                <div class="glass px-6 py-2 text-right min-w-[150px]">
                     <p id="clock" class="text-xl font-mono font-bold text-emerald-500">00:00:00</p>
-                    <p id="date" class="text-[9px] opacity-60 uppercase">Đang tải...</p>
+                    <p id="date" class="text-[10px] opacity-60 uppercase">Đang tải...</p>
                 </div>
             </div>
         </div>
 
         <div id="main-content" class="transition-all duration-500">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="glass p-6 border-b-4 border-emerald-500">
-                    <p class="text-[10px] font-bold opacity-50 uppercase mb-2 text-emerald-500">Nhiệt độ (DHT11)</p>
-                    <h2 id="temp-val" class="text-5xl font-black italic">--°C</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="glass p-8 relative overflow-hidden group border-b-4 border-emerald-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="p-3 bg-emerald-500/20 rounded-xl text-emerald-400"><i class="fa-solid fa-temperature-high fa-2x"></i></div>
+                        <span class="text-[10px] font-bold opacity-50 uppercase">Nhiệt độ</span>
+                    </div>
+                    <h2 id="temp-val" class="text-6xl font-black italic">--°C</h2>
                 </div>
-                <div class="glass p-6 border-b-4 border-blue-500">
-                    <p class="text-[10px] font-bold opacity-50 uppercase mb-2 text-blue-500">Độ ẩm (DHT11)</p>
-                    <h2 id="humi-val" class="text-5xl font-black italic">--%</h2>
+
+                <div class="glass p-8 relative overflow-hidden group border-b-4 border-blue-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="p-3 bg-blue-500/20 rounded-xl text-blue-400"><i class="fa-solid fa-droplet fa-2x"></i></div>
+                        <span class="text-[10px] font-bold opacity-50 uppercase">Độ ẩm</span>
+                    </div>
+                    <h2 id="humi-val" class="text-6xl font-black italic">--%</h2>
                 </div>
-                <div class="glass p-6 border-b-4 border-sky-500">
-                    <p class="text-[10px] font-bold opacity-50 uppercase mb-2 text-sky-500">Áp suất (BMP180)</p>
-                    <h2 id="pres-val" class="text-4xl font-black italic pt-2">-- hPa</h2>
+
+                <div class="glass p-8 relative overflow-hidden group border-b-4 border-sky-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="p-3 bg-sky-500/20 rounded-xl text-sky-400"><i class="fa-solid fa-gauge fa-2x"></i></div>
+                        <span class="text-[10px] font-bold opacity-50 uppercase">Áp suất</span>
+                    </div>
+                    <h2 id="pres-val" class="text-5xl font-black pt-1 italic">-- hPa</h2>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 space-y-8">
-                    <div class="glass p-6 h-[400px]">
-                        <h3 class="text-xs font-bold mb-4 opacity-50 uppercase tracking-widest text-emerald-500">Lịch sử Nhiệt độ & Độ ẩm (Real-time)</h3>
-                        <canvas id="weatherChart"></canvas>
-                    </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                <div class="glass p-6 h-[400px]">
+                    <h3 class="text-xs font-bold mb-4 opacity-50 uppercase tracking-widest text-emerald-500">Lịch sử Nhiệt độ & Độ ẩm</h3>
+                    <canvas id="weatherChart"></canvas>
                 </div>
+                <div class="glass p-6 h-[400px]">
+                    <h3 class="text-xs font-bold mb-4 opacity-50 uppercase tracking-widest text-sky-500">Biến thiên Áp suất</h3>
+                    <canvas id="pressureChart"></canvas>
+                </div>
+            </div>
 
-                <div class="glass flex flex-col h-[400px] overflow-hidden border-t-4 border-emerald-500/40">
-                    <div class="p-4 bg-emerald-500/10 flex justify-between items-center border-b border-white/5">
-                        <h3 class="text-[11px] font-black uppercase tracking-widest"><i class="fa-solid fa-list-ul mr-2"></i>Nhật ký dữ liệu</h3>
-                        <span class="text-[8px] bg-emerald-500 text-white px-2 py-0.5 rounded-full">15 bản ghi</span>
-                    </div>
-                    <div class="overflow-y-auto flex-grow p-2">
-                        <table class="w-full text-left">
-                            <thead class="text-[9px] opacity-40 uppercase sticky top-0 bg-slate-900 z-10">
-                                <tr>
-                                    <th class="p-2">Giờ</th>
-                                    <th class="p-2">T°C</th>
-                                    <th class="p-2">H%</th>
-                                    <th class="p-2">P(hPa)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="history-body" class="text-[11px] font-mono divide-y divide-white/5">
-                                </tbody>
-                        </table>
-                    </div>
+            <div class="glass overflow-hidden border-t-4 border-emerald-500/50">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 class="text-sm font-bold uppercase tracking-widest"><i class="fa-solid fa-clock-rotate-left mr-2 text-emerald-500"></i>Nhật ký dữ liệu thời gian thực</h3>
+                    <span class="text-[10px] opacity-40 font-mono">Hiển thị 10 bản ghi gần nhất</span>
+                </div>
+                <div id="log-container" class="max-h-[400px] overflow-y-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-800/90 backdrop-blur-md text-[10px] uppercase text-slate-500 font-bold">
+                            <tr>
+                                <th class="px-6 py-4">Thời gian</th>
+                                <th class="px-6 py-4">Nhiệt độ</th>
+                                <th class="px-6 py-4">Độ ẩm</th>
+                                <th class="px-6 py-4">Áp suất</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-log" class="text-sm divide-y divide-white/5 font-mono">
+                            </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyCRfbr0qfk3Dl3s4CL91ebv4Mwn_fh05wk",
             authDomain: "thoitiet-83ada.firebaseapp.com",
@@ -119,93 +142,117 @@
         const database = firebase.database();
 
         let lastSeen = 0;
-        const OFFLINE_LIMIT = 25000; // 25 giây 
+        const OFFLINE_LIMIT = 25000;
 
-        // --- CHART SETUP ---
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            elements: { line: { tension: 0.5 } },
+            plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { size: 11, weight: 'bold' } } } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+            }
+        };
+
         const weatherChart = new Chart(document.getElementById('weatherChart'), {
             type: 'line',
             data: { labels: [], datasets: [
-                { label: 'Nhiệt độ', data: [], borderColor: '#10b981', tension: 0.5, pointRadius: 0 },
-                { label: 'Độ ẩm', data: [], borderColor: '#3b82f6', tension: 0.5, pointRadius: 0 }
+                { label: 'Nhiệt độ (°C)', data: [], borderColor: '#10b981', pointRadius: 0, borderWidth: 3 },
+                { label: 'Độ ẩm (%)', data: [], borderColor: '#3b82f6', pointRadius: 0, borderWidth: 3 }
             ]},
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } },
-                scales: {
-                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 } } },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
-                }
-            }
+            options: commonOptions
         });
 
-        // --- DATA PROCESSING ---
+        const pressureChart = new Chart(document.getElementById('pressureChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Áp suất (hPa)', data: [], borderColor: '#0ea5e9', fill: true, backgroundColor: 'rgba(14,165,233,0.1)', pointRadius: 2, borderWidth: 2 }
+            ]},
+            options: commonOptions
+        });
+
         database.ref('/weather').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 lastSeen = Date.now();
-                updateDashboard(data);
-                toggleConnection(true);
+                updateDisplay(data);
+                toggleOfflineUI(false);
             }
         });
 
-        function updateDashboard(data) {
+        function updateDisplay(data) {
             const t = Number(data.temperature);
             const h = Number(data.humidity);
             const p = Number(data.pressure);
             const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
 
-            // Cập nhật số liệu [cite: 121]
+            // 1. Cập nhật các thẻ số
             document.getElementById('temp-val').innerText = t.toFixed(1) + "°C";
-            document.getElementById('humi-val').innerText = h.toFixed(0) + "%";
+            document.getElementById('humi-val').innerText = h.toFixed(1) + "%";
             document.getElementById('pres-val').innerText = Math.round(p) + " hPa";
 
-            // Cập nhật biểu đồ 
-            if (weatherChart.data.labels.length > 15) {
-                weatherChart.data.labels.shift();
-                weatherChart.data.datasets[0].data.shift();
-                weatherChart.data.datasets[1].data.shift();
-            }
-            weatherChart.data.labels.push(time);
+            // 2. Cập nhật biểu đồ
+            [weatherChart, pressureChart].forEach(c => {
+                if (c.data.labels.length > 15) { c.data.labels.shift(); c.data.datasets.forEach(d => d.data.shift()); }
+                c.data.labels.push(time);
+            });
             weatherChart.data.datasets[0].data.push(t);
             weatherChart.data.datasets[1].data.push(h);
+            pressureChart.data.datasets[0].data.push(p);
             weatherChart.update('none');
+            pressureChart.update('none');
 
-            // Cập nhật BẢNG LỊCH SỬ
-            const tableBody = document.getElementById('history-body');
-            const row = `<tr class="hover:bg-emerald-500/10 transition-colors">
-                <td class="p-2 text-emerald-500 font-bold">${time}</td>
-                <td class="p-2">${t.toFixed(1)}</td>
-                <td class="p-2">${h.toFixed(0)}</td>
-                <td class="p-2">${Math.round(p)}</td>
-            </tr>`;
-            tableBody.insertAdjacentHTML('afterbegin', row);
-            if (tableBody.rows.length > 15) tableBody.deleteRow(15);
+            // 3. Cập nhật NHẬT KÝ DỮ LIỆU (Bảng)
+            const logBody = document.getElementById('data-log');
+            const newRow = `
+                <tr class="hover:bg-emerald-500/10 transition-colors">
+                    <td class="px-6 py-4 text-emerald-400 font-bold">${time}</td>
+                    <td class="px-6 py-4">${t.toFixed(1)}°C</td>
+                    <td class="px-6 py-4">${h.toFixed(1)}%</td>
+                    <td class="px-6 py-4 font-bold text-sky-400">${Math.round(p)} hPa</td>
+                </tr>
+            `;
+            logBody.insertAdjacentHTML('afterbegin', newRow);
+            
+            // Giới hạn bảng chỉ hiện 10 bản ghi gần nhất cho nhẹ máy
+            if (logBody.rows.length > 10) {
+                logBody.deleteRow(10);
+            }
         }
 
-        // --- WATCHDOG & UI LOGIC ---
         setInterval(() => {
-            if (Date.now() - lastSeen > OFFLINE_LIMIT) toggleConnection(false);
+            if (Date.now() - lastSeen > OFFLINE_LIMIT) toggleOfflineUI(true);
         }, 5000);
 
-        function toggleConnection(isOnline) {
+        function toggleOfflineUI(isOffline) {
             const dot = document.getElementById('status-dot');
             const txt = document.getElementById('status-text');
             const main = document.getElementById('main-content');
-            if (isOnline) {
-                dot.className = "w-3 h-3 bg-green-500 rounded-full heartbeat mr-2";
-                txt.innerText = "THIẾT BỊ TRỰC TUYẾN";
-                txt.className = "text-green-500 text-[10px] font-bold uppercase";
-                main.classList.remove('is-offline');
-            } else {
+
+            if (isOffline) {
                 dot.className = "w-3 h-3 bg-red-600 rounded-full mr-2";
-                txt.innerText = "THIẾT BỊ NGOẠI TUYẾN (OFFLINE)";
-                txt.className = "text-red-500 text-[10px] font-bold uppercase";
+                txt.innerText = "NGOẠI TUYẾN (RÚT NGUỒN)";
+                txt.className = "text-red-500 text-[10px] font-bold uppercase tracking-widest";
                 main.classList.add('is-offline');
+            } else {
+                dot.className = "w-3 h-3 bg-green-500 rounded-full heartbeat mr-2";
+                txt.innerText = "TRỰC TUYẾN";
+                txt.className = "text-green-500 text-[10px] font-bold uppercase tracking-widest";
+                main.classList.remove('is-offline');
             }
         }
 
         document.getElementById('mode-toggle').addEventListener('change', function() {
             document.documentElement.classList.toggle('light');
+            const isLight = document.documentElement.classList.contains('light');
+            const color = isLight ? '#64748b' : '#94a3b8';
+            [weatherChart, pressureChart].forEach(c => {
+                c.options.plugins.legend.labels.color = color;
+                c.options.scales.x.ticks.color = color;
+                c.options.scales.y.ticks.color = color;
+                c.update();
+            });
         });
 
         setInterval(() => {
